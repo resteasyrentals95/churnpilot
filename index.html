@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChurnPilot — Points & Card Strategy</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#131c2e; --panel2:#1a2540; --line:#26334f;
+    --text:#e8eefc; --muted:#8fa0c2; --gold:#f5c451; --green:#3ddc97;
+    --blue:#5b9dff; --red:#ff6b6b; --purple:#b48cff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  header{position:sticky;top:0;z-index:50;background:rgba(11,18,32,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 20px}
+  .hrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;max-width:1100px;margin:0 auto}
+  .logo{font-size:22px;font-weight:800}
+  .logo span{color:var(--gold)}
+  .logo small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+  .modeToggle{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+  .modeToggle button{border:none;background:transparent;color:var(--muted);padding:8px 18px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:600}
+  .modeToggle button.on{background:var(--gold);color:#1a1200}
+  nav{display:flex;gap:4px;max-width:1100px;margin:12px auto 0;overflow-x:auto}
+  nav button{border:none;background:transparent;color:var(--muted);padding:10px 14px;border-radius:10px 10px 0 0;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap}
+  nav button.on{background:var(--panel);color:var(--text);border:1px solid var(--line);border-bottom:none}
+  main{max-width:1100px;margin:0 auto;padding:20px}
+  .tab{display:none}.tab.on{display:block}
+  h2{font-size:20px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .g4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .stat .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .stat .val{font-size:26px;font-weight:800;margin-top:4px}
+  .stat .note{color:var(--muted);font-size:12px;margin-top:4px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .pill.biz{background:rgba(91,157,255,.18);color:var(--blue)}
+  .pill.pers{background:rgba(61,220,151,.15);color:var(--green)}
+  .pill.both{background:rgba(180,140,255,.15);color:var(--purple)}
+  .pill.warn{background:rgba(255,107,107,.15);color:var(--red)}
+  .pill.gold{background:rgba(245,196,81,.15);color:var(--gold)}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:600}
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:9px 11px;font-size:14px}
+  input:focus,select:focus{outline:none;border-color:var(--gold)}
+  .btn{display:inline-block;border:none;border-radius:10px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;background:var(--gold);color:#1a1200}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn.danger{background:transparent;border:1px solid rgba(255,107,107,.4);color:var(--red)}
+  .btn.sm{padding:7px 12px;font-size:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .spread{justify-content:space-between}
+  .useItem{border-top:1px solid var(--line);padding:11px 0}
+  .useItem:first-child{border-top:none}
+  .useTitle{font-weight:700;font-size:14px}
+  .useDesc{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.45}
+  .useVal{color:var(--green);font-weight:800;font-size:15px;white-space:nowrap}
+  .bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--green));border-radius:99px}
+  .alert{border-left:3px solid var(--red);background:rgba(255,107,107,.08);padding:10px 12px;border-radius:0 10px 10px 0;font-size:13px;margin-bottom:8px}
+  .alert.ok{border-color:var(--green);background:rgba(61,220,151,.07)}
+  .tl{position:relative;margin-left:14px;padding-left:22px;border-left:2px solid var(--line)}
+  .tlItem{position:relative;padding:0 0 22px}
+  .tlItem::before{content:'';position:absolute;left:-29px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--gold);border:3px solid var(--bg)}
+  .tlMonth{font-size:12px;color:var(--gold);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+  .tlCard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:6px}
+  .tlWhy{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.45}
+  .hbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+  .hchip{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 16px;font-size:13px}
+  .hchip b{display:block;font-size:19px;color:var(--green)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:8px;border-bottom:1px solid var(--line)}
+  td{padding:8px;border-bottom:1px solid var(--line)}
+  td input{width:70px;padding:5px 8px}
+  .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;padding:20px;overflow-y:auto}
+  .modal.on{display:flex;align-items:flex-start;justify-content:center}
+  .modalBox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:520px;width:100%;margin-top:40px}
+  .balGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+  .balCell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .balCell .nm{font-size:12px;font-weight:700;margin-bottom:5px}
+  .catHead{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px}
+  details{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:10px}
+  summary{padding:14px 16px;cursor:pointer;font-weight:700;font-size:14px}
+  details .body{padding:0 16px 16px;color:var(--muted);font-size:13px;line-height:1.55}
+  footer{max-width:1100px;margin:30px auto;padding:0 20px 40px;color:var(--muted);font-size:12px;line-height:1.6}
+  .empty{text-align:center;padding:40px 20px;color:var(--muted)}
+  .empty b{display:block;color:var(--text);font-size:16px;margin-bottom:6px}
+  @media(max-width:640px){.stat .val{font-size:21px}main{padding:14px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div class="logo">Churn<span>Pilot</span><small>Points &amp; card strategy for family + business</small></div>
+    <div class="modeToggle">
+      <button id="modePers" onclick="setMode('personal')">Personal</button>
+      <button id="modeBiz" onclick="setMode('business')">Business</button>
+    </div>
+  </div>
+  <nav>
+    <button data-tab="dash" class="on" onclick="go('dash')">Dashboard</button>
+    <button data-tab="opt" onclick="go('opt')">Maximize My Points</button>
+    <button data-tab="wallet" onclick="go('wallet')">My Cards</button>
+    <button data-tab="plan" onclick="go('plan')">Churning Plan</button>
+    <button data-tab="rules" onclick="go('rules')">Rules &amp; Data</button>
+  </nav>
+</header>
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dash" class="tab on">
+    <h2>Dashboard</h2>
+    <p class="sub">Your whole points picture at a glance. Switch Personal / Business at the top to change how everything is ranked.</p>
+    <div class="grid g4" id="dashStats"></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><h3 style="font-size:15px;margin-bottom:10px">⚠️ Action items</h3><div id="dashAlerts"></div></div>
+      <div class="card"><h3 style="font-size:15px;margin-bottom:10px">🎯 Next card to get</h3><div id="dashNext"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3 style="font-size:15px;margin-bottom:10px">💎 Best value in your points right now</h3><div id="dashBest"></div></div>
+  </section>
+
+  <!-- OPTIMIZER -->
+  <section id="tab-opt" class="tab">
+    <h2>Maximize My Points <span class="pill gold" id="optModePill"></span></h2>
+    <p class="sub">Type in your current balances. ChurnPilot ranks the industry's best redemptions for each program and shows exactly what your points are worth — ranked differently for personal vs. business use.</p>
+    <div class="card">
+      <div class="row spread"><b style="font-size:14px">Your balances</b><button class="btn ghost sm" onclick="clearBalances()">Clear all</button></div>
+      <div id="balances"></div>
+    </div>
+    <div id="optResults" style="margin-top:16px"></div>
+  </section>
+
+  <!-- WALLET -->
+  <section id="tab-wallet" class="tab">
+    <div class="row spread">
+      <div><h2>My Cards</h2><p class="sub">Store your active cards. ChurnPilot tracks sign-up bonus deadlines, annual fee renewals, and each card's current perks &amp; offers.</p></div>
+      <button class="btn" onclick="openAddCard()">+ Add a card</button>
+    </div>
+    <div id="walletList" class="grid g2"></div>
+  </section>
+
+  <!-- PLAN -->
+  <section id="tab-plan" class="tab">
+    <h2>Churning Plan</h2>
+    <p class="sub">A sequenced card-acquisition roadmap for the next 6, 12, and 24 months — built around real issuer rules (Chase 5/24, Amex limits, Capital One pacing) so your approvals actually go through.</p>
+    <div class="card">
+      <div class="grid g3">
+        <div><label>Cards opened in last 24 months (your "5/24" count)</label><input type="number" id="pl524" min="0" max="15" value="0"></div>
+        <div><label>Monthly spend you can put on cards ($)</label><input type="number" id="plSpend" min="0" step="250" value="4000"></div>
+        <div><label>Do you have a business? (LLC, sole prop, or side gig counts)</label>
+          <select id="plBiz"><option value="yes">Yes — include business cards</option><option value="no">No — personal only</option></select></div>
+        <div><label>Two-player mode (you + spouse/partner both apply)</label>
+          <select id="plP2"><option value="no">No — just me</option><option value="yes">Yes — double the bonuses</option></select></div>
+        <div style="align-self:end"><button class="btn" style="width:100%" onclick="buildPlan()">Build my plan</button></div>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px">Tip: cards already in <b>My Cards</b> are automatically skipped. Business cards from Chase, Amex &amp; Citi don't add to your 5/24 count.</p>
+    </div>
+    <div id="planOut" style="margin-top:16px"></div>
+  </section>
+
+  <!-- RULES & DATA -->
+  <section id="tab-rules" class="tab">
+    <h2>Rules &amp; Data</h2>
+    <p class="sub">The issuer rules the plan is built on, plus the point valuations used everywhere in the app — you can edit them.</p>
+    <details open><summary>Chase 5/24 rule</summary><div class="body">Chase will not approve most of their cards if you've opened <b>5 or more personal cards from ANY bank in the past 24 months</b>. This is why every good churning plan starts with Chase. Business cards from Chase, Amex, Citi, BofA, and Wells Fargo do <b>not</b> count toward 5/24 — but Chase business cards still require you to be under 5/24 to get approved.</div></details>
+    <details><summary>Amex rules — once per lifetime &amp; pacing</summary><div class="body">Amex generally gives each welcome bonus <b>once per lifetime</b> per card (roughly a 7-year memory in practice). You can hold up to 5 Amex credit cards, and can be approved for about 2 cards per 90 days. Always check for the "lifetime language" pop-up before applying — if no pop-up appears, you're eligible.</div></details>
+    <details><summary>Capital One pacing</summary><div class="body">Capital One is stingiest with approvals: roughly <b>1 card every 6 months</b>, and they pull all 3 credit bureaus. Their business cards DO report to your personal credit report (unlike most issuers), so they can add to 5/24.</div></details>
+    <details><summary>Citi rules</summary><div class="body">Citi allows 1 card per 8 days and max 2 per 65 days. Many Citi bonuses have <b>48-month rules</b> — you can earn the same bonus again 48 months after you last earned it. Citi business cards don't report to personal credit.</div></details>
+    <details><summary>Sapphire 48-month rule</summary><div class="body">You can only earn a Sapphire (Preferred or Reserve) bonus once every <b>48 months</b>, and can only hold one Sapphire card at a time.</div></details>
+    <details><summary>Golden rules of churning (read this!)</summary><div class="body">1) <b>Never carry a balance</b> — interest wipes out every point you earn. Pay in full monthly.<br>2) <b>Never spend money you wouldn't have spent anyway</b> just to hit a bonus.<br>3) Hit the minimum spend with real expenses: business costs, taxes, insurance, groceries, rent (via Bilt).<br>4) Space applications out — this app's plan does that for you.<br>5) Keep no-fee cards open forever (helps credit age); downgrade annual-fee cards you don't use instead of canceling.</div></details>
+    <div class="card" style="margin-top:16px">
+      <div class="row spread"><b style="font-size:14px">Point valuations (¢ per point)</b><button class="btn ghost sm" onclick="resetVals()">Reset to defaults</button></div>
+      <p style="color:var(--muted);font-size:12px;margin:6px 0 10px">Verified against The Points Guy / Upgraded Points, <b>July 2026</b>. Ask Claude to refresh these anytime — offers and values change monthly.</p>
+      <div style="overflow-x:auto"><table id="valTable"></table></div>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn ghost" onclick="exportData()">⬇ Back up my data</button>
+      <button class="btn ghost" onclick="document.getElementById('importFile').click()">⬆ Restore backup</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+  </section>
+</main>
+
+<footer>
+  <b>ChurnPilot</b> — educational planning tool, not financial advice. Card offers verified July 3, 2026 but change frequently — always confirm the current bonus on the issuer's site before applying. Only churn if you pay every card in full, every month. Your data is stored only on this device (nothing is uploaded anywhere).
+</footer>
+
+<!-- ADD CARD MODAL -->
+<div class="modal" id="cardModal">
+  <div class="modalBox">
+    <div class="row spread"><h3>Add a card</h3><button class="btn ghost sm" onclick="closeModal()">✕</button></div>
+    <label>Pick from the database (auto-fills everything)</label>
+    <select id="mDb" onchange="dbPicked()"><option value="">— Custom / other card —</option></select>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+      <div><label>Card name</label><input id="mName" placeholder="e.g. Chase Sapphire Preferred"></div>
+      <div><label>Issuer</label><input id="mIssuer" placeholder="e.g. Chase"></div>
+      <div><label>Use</label><select id="mType"><option value="personal">Personal</option><option value="business">Business</option></select></div>
+      <div><label>Annual fee ($)</label><input type="number" id="mAf" value="0"></div>
+      <div><label>Date opened</label><input type="date" id="mOpen"></div>
+      <div><label>Points program</label><select id="mProg"></select></div>
+      <div><label>Sign-up bonus (points)</label><input type="number" id="mSub" value="0"></div>
+      <div><label>Min. spend required ($)</label><input type="number" id="mMin" value="0"></div>
+      <div><label>Months to hit it</label><input type="number" id="mMonths" value="3"></div>
+      <div><label>Spent so far toward bonus ($)</label><input type="number" id="mSpent" value="0"></div>
+    </div>
+    <label>Notes / special offers on this card</label>
+    <textarea id="mNotes" rows="2" placeholder="e.g. $50 hotel credit unused, 0% APR ends March"></textarea>
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="saveCard()">Save card</button></div>
+  </div>
+</div>
+
+<script>
+/* ================= DATA (verified July 2026 — ask Claude to refresh) ================= */
+const PROGRAMS = {
+  BILT:{name:'Bilt Rewards',cpp:2.2,cat:'Transferable (flexible) points'},
+  UR:{name:'Chase Ultimate Rewards',cpp:2.05,cat:'Transferable (flexible) points'},
+  MR:{name:'Amex Membership Rewards',cpp:2.0,cat:'Transferable (flexible) points'},
+  TYP:{name:'Citi ThankYou Points',cpp:1.9,cat:'Transferable (flexible) points'},
+  C1:{name:'Capital One Miles',cpp:1.85,cat:'Transferable (flexible) points'},
+  AA:{name:'American AAdvantage',cpp:1.65,cat:'Airline miles'},
+  AS:{name:'Alaska Atmos / Mileage Plan',cpp:1.45,cat:'Airline miles'},
+  WN:{name:'Southwest Rapid Rewards',cpp:1.4,cat:'Airline miles'},
+  UA:{name:'United MileagePlus',cpp:1.35,cat:'Airline miles'},
+  B6:{name:'JetBlue TrueBlue',cpp:1.35,cat:'Airline miles'},
+  DL:{name:'Delta SkyMiles',cpp:1.2,cat:'Airline miles'},
+  HY:{name:'World of Hyatt',cpp:1.7,cat:'Hotel points'},
+  WY:{name:'Wyndham Rewards',cpp:1.1,cat:'Hotel points'},
+  MB:{name:'Marriott Bonvoy',cpp:0.85,cat:'Hotel points'},
+  HH:{name:'Hilton Honors',cpp:0.6,cat:'Hotel points'},
+  IHG:{name:'IHG One Rewards',cpp:0.5,cat:'Hotel points'},
+  CASH:{name:'Cash back',cpp:1.0,cat:'Transferable (flexible) points'}
+};
+
+/* tag: pers | biz | both  — how each use case gets ranked in each mode */
+const USES = {
+  UR:[
+    {t:'Transfer to World of Hyatt',cpp:2.2,tag:'pers',unit:15000,ul:'nights at a nice (Cat 1–4) Hyatt',d:'The single best hotel value in the industry. Nights run 3,500–18,000 pts; all-inclusive resorts from ~25,000/night for the family.'},
+    {t:'Transfer to Air Canada Aeroplan',cpp:2.0,tag:'both',d:'Book United, Lufthansa & 40+ airlines with no fuel surcharges. Add a stopover city for just 5,000 extra points.'},
+    {t:'Transfer to United MileagePlus',cpp:1.9,tag:'both',unit:60000,ul:'one-way business-class seats to Europe',d:'Great availability out of Nashville via Chicago/Denver hubs. No surcharges.'},
+    {t:'Book through Chase Travel portal (1.5–2¢ boost)',cpp:1.5,tag:'biz',d:'Cleanest option for business: book any flight/hotel like cash, get a normal receipt for your books, no blackout dates.'},
+    {t:'Transfer to Southwest (pair with Companion Pass)',cpp:1.35,tag:'pers',d:'If anyone in the family holds a Companion Pass, every point effectively doubles — kids fly on points, spouse flies free.'}
+  ],
+  MR:[
+    {t:'Transfer to ANA Mileage Club',cpp:2.75,tag:'pers',d:'The legendary sweet spot: round-trip BUSINESS class to Japan for 75K–90K points — a $6,000+ ticket.'},
+    {t:'Transfer to Air France/KLM Flying Blue',cpp:2.0,tag:'both',unit:50000,ul:'one-way business-class Promo Reward seats to Europe',d:'Monthly "Promo Rewards" knock 25–50% off awards to Europe. Easiest premium-cabin win from the US.'},
+    {t:'Transfer to Avianca LifeMiles',cpp:1.9,tag:'both',d:'Book United & Star Alliance flights with NO fuel surcharges, often cheaper than United charges.'},
+    {t:'Business Platinum 35% points rebate',cpp:1.54,tag:'biz',d:'Pay for business/first-class flights with points through Amex Travel and get 35% back — with a clean invoice for the business.'},
+    {t:'Transfer to Hilton at 1:2 during transfer bonuses',cpp:1.2,tag:'pers',d:'When Amex runs a transfer bonus, 100K MR can become 240K+ Hilton — a week at a beach resort.'}
+  ],
+  TYP:[
+    {t:'Transfer to Turkish Miles&Smiles',cpp:2.3,tag:'pers',d:'Wild sweet spots: US domestic United flights from 10K round-trip, business class to Europe from 45K.'},
+    {t:'Transfer to Avianca LifeMiles',cpp:1.9,tag:'both',d:'Star Alliance workhorse — no fuel surcharges, frequent point-sale promos.'},
+    {t:'Transfer to Choice at 1:2',cpp:1.6,tag:'biz',d:'Doubles your points for roadside hotels — perfect for work-crew or showing-circuit overnight stays.'},
+    {t:'Book through Citi Travel portal',cpp:1.0,tag:'biz',d:'Simple cash-style booking with receipts.'}
+  ],
+  C1:[
+    {t:'Transfer to Turkish Miles&Smiles',cpp:2.3,tag:'pers',d:'Same Turkish sweet spots — 10K round-trip domestic on United is one of the best deals in the game.'},
+    {t:'Transfer to Wyndham → Vacasa vacation rentals',cpp:1.5,tag:'pers',d:'15,000 points per bedroom per night at Vacasa vacation homes — the best family/large-group redemption anywhere.'},
+    {t:'Transfer to Air France Flying Blue',cpp:2.0,tag:'both',d:'Same Promo Rewards access as Amex/Chase.'},
+    {t:'Purchase eraser (wipe any travel charge)',cpp:1.0,tag:'biz',d:'Book travel however you want, then erase the charge with miles — the simplest option for business bookkeeping.'}
+  ],
+  BILT:[
+    {t:'Transfer to World of Hyatt',cpp:2.2,tag:'pers',d:'Bilt is the only no-fee card earning on RENT that transfers to Hyatt.'},
+    {t:'Transfer to Alaska Atmos',cpp:2.0,tag:'pers',d:'Access to oneworld partners like JAL & Cathay for premium-cabin steals.'},
+    {t:'Transfer to American AAdvantage',cpp:1.7,tag:'both',d:'Bilt is one of the ONLY ways to earn transferable points into AA.'},
+    {t:'Rent Day (1st of month) double points & deals',cpp:1.5,tag:'pers',d:'Bonuses and transfer promos every 1st of the month.'}
+  ],
+  AA:[
+    {t:'Web Special awards',cpp:1.8,tag:'both',d:'Domestic one-ways from 5,000–7,500 miles on sale — great for short business hops.'},
+    {t:'Qatar Qsuites to the Middle East/Asia',cpp:2.5,tag:'pers',d:'70K miles one-way in the best business class flying.'},
+    {t:'Japan Airlines premium cabins',cpp:2.2,tag:'pers',d:'60K–80K one-way in business/first to Asia.'}
+  ],
+  AS:[{t:'Japan Airlines / Cathay Pacific partner awards',cpp:2.2,tag:'pers',d:'Legendary sweet spots to Asia in premium cabins.'},{t:'Domestic + companion fare pairing',cpp:1.4,tag:'both',d:'Solid West Coast coverage; card companion fare stretches it further.'}],
+  WN:[{t:'Wanna Get Away fares + Companion Pass',cpp:2.8,tag:'pers',d:'With a Companion Pass, every redemption is effectively double — the #1 family travel play in America.'},{t:'Standard Wanna Get Away redemptions',cpp:1.4,tag:'both',d:'No blackout dates, 2 free bags, points back if you cancel — very business-friendly flexibility.'}],
+  UA:[{t:'Star Alliance partner awards',cpp:1.8,tag:'both',d:'Use United miles on Lufthansa, ANA, Turkish and more.'},{t:'Excursionist Perk (free extra leg)',cpp:1.6,tag:'pers',d:'Multi-city international trips get a free segment.'}],
+  B6:[{t:'Flash-sale cash-style redemptions',cpp:1.5,tag:'both',d:'Points track cash prices — best when fares are on sale.'}],
+  DL:[{t:'SkyMiles flash sales',cpp:1.5,tag:'both',d:'Watch for 50%-off award sales — otherwise Delta miles are best spent, not hoarded.'},{t:'Upgrade with miles on paid business trips',cpp:1.2,tag:'biz',d:'Turn economy work trips into first class.'}],
+  HY:[{t:'Category 1–4 free nights',cpp:2.0,tag:'pers',unit:15000,ul:'nights (avg Cat 1–4)',d:'3,500–18,000 pts/night. The best points-to-hotel-quality ratio in the industry.'},{t:'All-inclusive Hyatt resorts',cpp:1.8,tag:'pers',d:'From ~25K/night per room — meals & drinks for the whole family included.'},{t:'Business-trip city hotels',cpp:1.7,tag:'biz',d:'Hyatt Place/House cover most metros at low point rates.'}],
+  WY:[{t:'Vacasa vacation-rental homes',cpp:1.4,tag:'pers',d:'15K/bedroom/night — book a whole beach house on points.'},{t:'Standard 15K free nights',cpp:1.1,tag:'both',d:'Flat pricing regardless of cash rate — cash in when rates spike.'}],
+  MB:[{t:'Off-peak aspirational resorts',cpp:1.1,tag:'pers',d:'Look for dips in dynamic pricing; 5th night free on award stays.'},{t:'Everyday Courtyard/Fairfield stays',cpp:0.85,tag:'biz',d:'Workhorse coverage in every market.'}],
+  HH:[{t:'5th night free at resorts',cpp:0.8,tag:'pers',d:'Book 5-night stays (Maldives, Hawaii) — effectively 20% off, and Hilton points are easy to earn in bulk.'},{t:'Standard redemptions',cpp:0.6,tag:'both',d:'Values are low — burn them, don\'t hoard them.'}],
+  IHG:[{t:'4th night free (with IHG card)',cpp:0.7,tag:'both',d:'Card holders get every 4th award night free.'},{t:'Standard redemptions',cpp:0.5,tag:'both',d:'Best used during point sales.'}],
+  CASH:[{t:'Statement credit / bank deposit',cpp:1.0,tag:'both',d:'Cash is cash — flexible, boring, reliable.'}]
+};
+
+/* Card database — offers verified July 2026, marked approximate */
+const CARDDB = [
+ {id:'csp',n:'Chase Sapphire Preferred',iss:'Chase',type:'personal',af:95,prog:'UR',sub:100000,min:5000,mo:3,chase:true,
+  hl:'3x dining, 2x travel. Bonus worth ~$2,050 in travel. LIMITED-TIME 100K offer.',perks:['$50 annual hotel credit','10% anniversary point bonus','Primary rental car insurance']},
+ {id:'inkpref',n:'Chase Ink Business Preferred',iss:'Chase',type:'business',af:95,prog:'UR',sub:100000,min:8000,mo:3,chase:true,
+  hl:'3x on ads, shipping, travel, internet (up to $150K/yr). The single best business bonus for the fee.',perks:['Cell phone protection','Doesn\'t count toward 5/24','Employee cards free']},
+ {id:'inkcash',n:'Chase Ink Business Cash',iss:'Chase',type:'business',af:0,prog:'UR',sub:75000,min:6000,mo:6,chase:true,
+  hl:'$750 bonus, NO annual fee. 5% on office supply stores, internet, phone.',perks:['No annual fee ever','Points pool with Ink Preferred/Sapphire','Doesn\'t count toward 5/24']},
+ {id:'inkunl',n:'Chase Ink Business Unlimited',iss:'Chase',type:'business',af:0,prog:'UR',sub:75000,min:6000,mo:6,chase:true,
+  hl:'$750 bonus, no fee, flat 1.5x on everything — great catch-all business card.',perks:['No annual fee ever','Points pool with other Chase cards','Doesn\'t count toward 5/24']},
+ {id:'csr',n:'Chase Sapphire Reserve',iss:'Chase',type:'personal',af:795,prog:'UR',sub:100000,min:6000,mo:3,chase:true,
+  hl:'Premium version of the CSP — only pick one Sapphire (48-month rule).',perks:['$300 travel credit','Lounge access','Big fee — only worth it if you travel a lot']},
+ {id:'amexgold',n:'Amex Gold',iss:'Amex',type:'personal',af:325,prog:'MR',sub:100000,min:8000,mo:6,
+  hl:'4x at restaurants & US supermarkets — the family food card.',perks:['~$120 dining credit/yr','~$120 Uber cash/yr','Check the no-lifetime-language pop-up before applying']},
+ {id:'amexbizgold',n:'Amex Business Gold',iss:'Amex',type:'business',af:375,prog:'MR',sub:100000,min:15000,mo:3,
+  hl:'4x on your top 2 business categories automatically (ads, gas, shipping...).',perks:['Doesn\'t count toward 5/24','$240 flexible business credits']},
+ {id:'amexbizplat',n:'Amex Business Platinum',iss:'Amex',type:'business',af:695,prog:'MR',sub:300000,min:20000,mo:3,
+  hl:'MONSTER current offer: up to 300K points (~$6,000 of travel). Needs $20K spend — time it with a big business expense.',perks:['35% points rebate on flights','Lounge access','$1,000+ in yearly statement credits','Doesn\'t count toward 5/24']},
+ {id:'amexplat',n:'Amex Platinum',iss:'Amex',type:'personal',af:895,prog:'MR',sub:175000,min:12000,mo:6,
+  hl:'Up to 175K points. Luxury travel perks galore; fee is offset by credits IF you use them.',perks:['Lounge access everywhere','$200 hotel + $200 airline + Uber/digital credits','Check pop-up for eligibility']},
+ {id:'venturex',n:'Capital One Venture X',iss:'Capital One',type:'personal',af:395,prog:'C1',sub:75000,min:4000,mo:3,c1:true,
+  hl:'Effectively FREE premium card: $300 travel credit + 10K anniversary miles ≥ fee.',perks:['Lounge access','2x on everything','Counts toward 5/24 — get Chase cards first']},
+ {id:'vxbiz',n:'Capital One Venture X Business',iss:'Capital One',type:'business',af:395,prog:'C1',sub:150000,min:30000,mo:3,c1:true,
+  hl:'150K miles for heavy-spend businesses ($30K/3mo).',perks:['Lounge access','2x everything','⚠️ C1 business cards DO report to personal credit']},
+ {id:'strata',n:'Citi Strata Premier',iss:'Citi',type:'personal',af:95,prog:'TYP',sub:75000,min:4000,mo:3,
+  hl:'3x on flights, hotels, gas, groceries, dining — broadest 3x coverage of any $95 card.',perks:['$100 hotel credit','Transfers to Turkish = huge sweet spots']},
+ {id:'bilt',n:'Bilt Mastercard',iss:'Wells Fargo',type:'personal',af:0,prog:'BILT',sub:0,min:0,mo:0,
+  hl:'No bonus, but the ONLY card that earns points on rent with no fees. Most valuable currency in the game (2.2¢).',perks:['Rent Day promos monthly','Transfers to Hyatt, AA, Alaska']},
+ {id:'hyatt',n:'World of Hyatt Card',iss:'Chase',type:'personal',af:95,prog:'HY',sub:60000,min:15000,mo:6,chase:true,
+  hl:'30K after $3K, +30K more after $15K total. Free night every anniversary pays the fee by itself.',perks:['Annual Cat 1–4 free night','5 elite nights/yr','Counts toward 5/24']},
+ {id:'swpriority',n:'Southwest Rapid Rewards Priority',iss:'Chase',type:'personal',af:149,prog:'WN',sub:50000,min:3000,mo:3,chase:true,
+  hl:'Cornerstone of the Companion Pass play (pair with a Southwest business card in the same year).',perks:['$75 SW credit/yr','7,500 anniversary points','Counts toward 5/24']},
+ {id:'swbiz',n:'Southwest Performance Business',iss:'Chase',type:'business',af:199,prog:'WN',sub:80000,min:5000,mo:3,chase:true,
+  hl:'80K bonus + the 50K personal card ≈ instant Companion Pass: spouse flies FREE for up to 2 years.',perks:['Doesn\'t count toward 5/24','9,000 anniversary points','4 upgraded boardings/yr']},
+ {id:'united',n:'United Explorer',iss:'Chase',type:'personal',af:150,prog:'UA',sub:60000,min:3000,mo:3,chase:true,
+  hl:'$0 fee first year. Free bags + expanded award availability.',perks:['Free first bag (saves ~$80/round trip)','2 lounge passes/yr','Counts toward 5/24']},
+ {id:'aaplat',n:'Citi / AAdvantage Platinum Select',iss:'Citi',type:'personal',af:99,prog:'AA',sub:75000,min:3500,mo:4,
+  hl:'AA miles are the most valuable airline currency (1.65¢) and hard to earn otherwise.',perks:['Free checked bag','$125 flight discount after $20K/yr']},
+ {id:'aabiz',n:'Citi / AAdvantage Business',iss:'Citi',type:'business',af:99,prog:'AA',sub:75000,min:5000,mo:5,
+  hl:'Same great AA miles; doesn\'t count toward 5/24.',perks:['Free checked bag','Companion certificate potential']},
+ {id:'deltagold',n:'Delta SkyMiles Gold Amex',iss:'Amex',type:'personal',af:150,prog:'DL',sub:70000,min:3000,mo:6,
+  hl:'$0 intro fee first year; free bags on Delta.',perks:['Free first bag','$200 Delta flight credit after $10K/yr','TakeOff 15% off awards']},
+ {id:'deltabizgold',n:'Delta SkyMiles Gold Business',iss:'Amex',type:'business',af:150,prog:'DL',sub:75000,min:6000,mo:6,
+  hl:'Business version — doesn\'t count toward 5/24.',perks:['Free first bag','15% off Delta awards']},
+ {id:'hiltonsurpass',n:'Hilton Honors Surpass',iss:'Amex',type:'personal',af:150,prog:'HH',sub:130000,min:3000,mo:6,
+  hl:'Huge point hauls; Hilton points are easy to burn on family resort stays.',perks:['Free Night Reward after $15K/yr','Gold status (free breakfast)','$200 Hilton credits/yr']},
+ {id:'boundless',n:'Marriott Bonvoy Boundless',iss:'Chase',type:'personal',af:95,prog:'MB',sub:125000,min:5000,mo:3,chase:true,
+  hl:'Often runs 3–5 Free Night Certificate offers — watch for those.',perks:['Annual 35K free night','Counts toward 5/24 AND blocks some Amex Marriott cards']},
+ {id:'unitedbiz',n:'United Business',iss:'Chase',type:'business',af:99,prog:'UA',sub:75000,min:5000,mo:3,chase:true,
+  hl:'Solid bonus; doesn\'t count toward 5/24.',perks:['Free first bag','2 lounge passes/yr']}
+];
+
+/* ================= STATE ================= */
+const DEFAULTS = {mode:'personal',balances:{},cards:[],vals:{},plan:{p524:0,spend:4000,biz:'yes',p2:'no'},planOut:null};
+let S = load();
+function load(){try{const s=JSON.parse(localStorage.getItem('churnpilot'));return Object.assign({},DEFAULTS,s)}catch(e){return {...DEFAULTS}}}
+function save(){localStorage.setItem('churnpilot',JSON.stringify(S))}
+function val(p){return S.vals[p]!=null?S.vals[p]:PROGRAMS[p].cpp}
+const fmt=n=>Math.round(n).toLocaleString();
+const money=n=>'$'+Math.round(n).toLocaleString();
+
+/* ================= NAV / MODE ================= */
+function go(t){document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));document.querySelectorAll('nav button').forEach(e=>e.classList.remove('on'));document.getElementById('tab-'+t).classList.add('on');document.querySelector(`nav [data-tab="${t}"]`).classList.add('on');window.scrollTo(0,0)}
+function setMode(m){S.mode=m;save();paintMode();renderAll()}
+function paintMode(){document.getElementById('modePers').classList.toggle('on',S.mode==='personal');document.getElementById('modeBiz').classList.toggle('on',S.mode==='business')}
+
+/* ================= OPTIMIZER ================= */
+function renderBalances(){
+  const cats={};Object.keys(PROGRAMS).forEach(k=>{(cats[PROGRAMS[k].cat]=cats[PROGRAMS[k].cat]||[]).push(k)});
+  let h='';
+  for(const c in cats){
+    h+=`<div class="catHead">${c}</div><div class="balGrid">`;
+    cats[c].forEach(k=>{h+=`<div class="balCell"><div class="nm">${PROGRAMS[k].name}</div><input type="number" min="0" step="1000" placeholder="0" value="${S.balances[k]||''}" onchange="setBal('${k}',this.value)"></div>`});
+    h+='</div>';
+  }
+  document.getElementById('balances').innerHTML=h;
+}
+function setBal(k,v){S.balances[k]=Number(v)||0;save();renderOpt();renderDash()}
+function clearBalances(){S.balances={};save();renderBalances();renderOpt();renderDash()}
+function rankUses(prog){
+  const opp=S.mode==='business'?'pers':'biz';
+  return [...(USES[prog]||[])].sort((a,b)=>{
+    const ap=a.tag===opp?0:1, bp=b.tag===opp?0:1;
+    return bp-ap || b.cpp-a.cpp;
+  });
+}
+function renderOpt(){
+  document.getElementById('optModePill').textContent = S.mode==='business'?'Business mode':'Personal mode';
+  const active=Object.keys(S.balances).filter(k=>S.balances[k]>0).sort((a,b)=>S.balances[b]*val(b)-S.balances[a]*val(a));
+  const out=document.getElementById('optResults');
+  if(!active.length){out.innerHTML='<div class="card empty"><b>Enter a balance above to get started</b>Every program you add gets an instant ranked list of its best redemptions.</div>';return}
+  let h='';
+  active.forEach(k=>{
+    const bal=S.balances[k], base=bal*val(k)/100;
+    h+=`<div class="card" style="margin-bottom:14px"><div class="row spread"><div><b style="font-size:16px">${PROGRAMS[k].name}</b><span class="pill gold">${fmt(bal)} pts ≈ ${money(base)}</span></div></div>`;
+    rankUses(k).forEach((u,i)=>{
+      const v=bal*u.cpp/100;
+      const tag=u.tag==='biz'?'<span class="pill biz">Business</span>':u.tag==='pers'?'<span class="pill pers">Personal</span>':'<span class="pill both">Both</span>';
+      const ex=u.unit?`<div class="useDesc">👉 Your balance ≈ <b style="color:var(--text)">${Math.floor(bal/u.unit)}</b> ${u.ul}.</div>`:'';
+      h+=`<div class="useItem"><div class="row spread"><div class="useTitle">${i===0?'⭐ ':''}${u.t} ${tag}</div><div class="useVal">${money(v)}</div></div><div class="useDesc">${u.d} <i style="color:var(--gold)">(~${u.cpp}¢/pt)</i></div>${ex}</div>`;
+    });
+    h+='</div>';
+  });
+  out.innerHTML=h;
+}
+
+/* ================= WALLET ================= */
+function openAddCard(){
+  const sel=document.getElementById('mDb');
+  sel.innerHTML='<option value="">— Custom / other card —</option>'+CARDDB.map(c=>`<option value="${c.id}">${c.n} (${c.type==='business'?'Biz':'Personal'}${c.sub?' — '+fmt(c.sub)+' pt bonus':''})</option>`).join('');
+  const ps=document.getElementById('mProg');
+  ps.innerHTML=Object.keys(PROGRAMS).map(k=>`<option value="${k}">${PROGRAMS[k].name}</option>`).join('');
+  document.getElementById('mOpen').value=new Date().toISOString().slice(0,10);
+  document.getElementById('cardModal').classList.add('on');
+}
+function closeModal(){document.getElementById('cardModal').classList.remove('on')}
+function dbPicked(){
+  const c=CARDDB.find(x=>x.id===document.getElementById('mDb').value);if(!c)return;
+  mName.value=c.n;mIssuer.value=c.iss;mType.value=c.type;mAf.value=c.af;mProg.value=c.prog;mSub.value=c.sub;mMin.value=c.min;mMonths.value=c.mo||3;
+}
+function saveCard(){
+  if(!mName.value.trim()){alert('Give the card a name');return}
+  S.cards.push({uid:Date.now(),dbId:mDb.value||null,name:mName.value.trim(),iss:mIssuer.value.trim(),type:mType.value,af:Number(mAf.value)||0,open:mOpen.value,prog:mProg.value,sub:Number(mSub.value)||0,min:Number(mMin.value)||0,months:Number(mMonths.value)||3,spent:Number(mSpent.value)||0,notes:mNotes.value.trim()});
+  save();closeModal();
+  ['mName','mIssuer','mSub','mMin','mSpent','mNotes'].forEach(id=>document.getElementById(id).value='');
+  renderWallet();renderDash();
+}
+function delCard(uid){if(confirm('Remove this card from your wallet?')){S.cards=S.cards.filter(c=>c.uid!==uid);save();renderWallet();renderDash()}}
+function updSpent(uid,v){const c=S.cards.find(c=>c.uid===uid);if(c){c.spent=Number(v)||0;save();renderWallet();renderDash()}}
+function cardDeadline(c){if(!c.open||!c.months)return null;const d=new Date(c.open);d.setMonth(d.getMonth()+c.months);return d}
+function cardAnniv(c){if(!c.open)return null;const d=new Date(c.open);const now=new Date();d.setFullYear(d.getFullYear()+1);while(d<now)d.setFullYear(d.getFullYear()+1);return d}
+function renderWallet(){
+  const w=document.getElementById('walletList');
+  if(!S.cards.length){w.innerHTML='<div class="card empty" style="grid-column:1/-1"><b>No cards yet</b>Add your active cards to track bonus deadlines, annual fees, and perks — and so the Churning Plan knows what you already have.</div>';return}
+  w.innerHTML=S.cards.map(c=>{
+    const db=CARDDB.find(x=>x.id===c.dbId);
+    const dl=cardDeadline(c), anniv=cardAnniv(c), now=new Date();
+    const pct=c.min?Math.min(100,c.spent/c.min*100):100;
+    const subDone=!c.min||c.spent>=c.min;
+    let subHtml='';
+    if(c.sub>0){
+      const days=dl?Math.ceil((dl-now)/864e5):null;
+      subHtml=`<div style="margin-top:10px"><div class="row spread" style="font-size:12px"><span style="color:var(--muted)">Bonus progress: ${money(c.spent)} / ${money(c.min)}</span>
+        <span>${subDone?'<span class="pill pers">✓ Bonus earned</span>':days!=null?(days<0?'<span class="pill warn">Deadline passed</span>':`<span class="pill ${days<30?'warn':'gold'}">${days} days left</span>`):''}</span></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        ${!subDone?`<label>Update spend so far ($)</label><input type="number" value="${c.spent}" onchange="updSpent(${c.uid},this.value)">`:''}
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">Bonus: <b style="color:var(--gold)">${fmt(c.sub)} pts</b> ≈ ${money(c.sub*val(c.prog)/100)}</div></div>`;
+    }
+    const perks=db?`<div style="margin-top:10px;font-size:13px;color:var(--muted)"><b style="color:var(--text);font-size:12px">CURRENT PERKS & OFFERS</b><br>${db.perks.map(p=>'• '+p).join('<br>')}</div>`:'';
+    const annivStr=anniv?`<div style="font-size:12px;color:var(--muted);margin-top:8px">💳 Annual fee ${c.af?money(c.af):'$0'} — renews ${anniv.toLocaleDateString()}</div>`:'';
+    return `<div class="card"><div class="row spread"><div><b style="font-size:15px">${c.name}</b> ${c.type==='business'?'<span class="pill biz">Business</span>':'<span class="pill pers">Personal</span>'}<div style="font-size:12px;color:var(--muted);margin-top:2px">${c.iss} · ${PROGRAMS[c.prog].name}${c.open?' · opened '+new Date(c.open).toLocaleDateString():''}</div></div>
+      <button class="btn danger sm" onclick="delCard(${c.uid})">✕</button></div>
+      ${subHtml}${annivStr}${perks}
+      ${c.notes?`<div style="margin-top:8px;font-size:13px;color:var(--gold)">📌 ${c.notes}</div>`:''}</div>`;
+  }).join('');
+}
+
+/* ================= CHURNING PLAN ================= */
+function buildPlan(){
+  S.plan={p524:Number(pl524.value)||0,spend:Number(plSpend.value)||0,biz:plBiz.value,p2:plP2.value};
+  const owned=new Set(S.cards.map(c=>c.dbId).filter(Boolean));
+  let p524=S.plan.p524;
+  const spend=S.plan.spend, hasBiz=S.plan.biz==='yes', p2=S.plan.p2==='yes';
+  const canAfford=c=>c.min<= spend*(c.mo||3);
+  const persQ=CARDDB.filter(c=>c.type==='personal'&&c.sub>0&&!owned.has(c.id)&&c.id!=='csr');
+  const bizQ=CARDDB.filter(c=>c.type==='business'&&c.sub>0&&!owned.has(c.id));
+  // priority: Chase first while under 5/24, then by bonus value
+  const score=c=>(c.chase?(p524<5?1e9:0):0)+c.sub*val(c.prog);
+  persQ.sort((a,b)=>score(b)-score(a));bizQ.sort((a,b)=>score(b)-score(a));
+  const events=[],skipped=[];
+  let lastAny=-99,lastPers=-99,lastBiz=-99,lastC1=-99;
+  const gapAny=p2?1:2, gapType=p2?2:3;
+  let player=1;
+  for(let m=0;m<=24;m++){
+    if(m-lastAny<gapAny)continue;
+    let pick=null,why='';
+    // business slot first (doesn't touch 5/24)
+    if(hasBiz&&m-lastBiz>=gapType){
+      const i=bizQ.findIndex(c=>canAfford(c)&&(!c.chase||p524<5)&&(!c.c1||m-lastC1>=6));
+      if(i>-1){pick=bizQ.splice(i,1)[0];lastBiz=m;
+        why=pick.c1?'Capital One business cards report to personal credit — spaced 6+ months apart.':(pick.chase?'Chase business card: big bonus and it does NOT add to your 5/24 count — but you must be under 5/24 to get approved, so these come early.':'Business card — no impact on your personal 5/24 count.');}
+    }
+    if(!pick&&m-lastPers>=gapType){
+      const i=persQ.findIndex(c=>canAfford(c)&&(!c.chase||p524<5)&&(!c.c1||m-lastC1>=6));
+      if(i>-1){pick=persQ.splice(i,1)[0];lastPers=m;p524++;
+        why=pick.chase?'Chase personal card — grab these FIRST while you\'re under 5/24. This adds +1 to your count.':'Adds +1 to your 5/24 count — that\'s fine, the Chase cards you needed are already in the plan.';}
+    }
+    if(pick){
+      if(pick.c1)lastC1=m;lastAny=m;
+      events.push({m,card:pick,why,player:p2?player:0});
+      if(p2)player=player===1?2:1;
+    }
+  }
+  [...persQ,...bizQ].forEach(c=>{if(!canAfford(c))skipped.push(c)});
+  S.planOut={events:events.map(e=>({m:e.m,id:e.card.id,why:e.why,player:e.player})),skippedIds:skipped.map(c=>c.id),ts:Date.now()};
+  save();renderPlan();renderDash();
+}
+function renderPlan(){
+  const out=document.getElementById('planOut');
+  pl524.value=S.plan.p524;plSpend.value=S.plan.spend;plBiz.value=S.plan.biz;plP2.value=S.plan.p2;
+  if(!S.planOut){out.innerHTML='';return}
+  const evs=S.planOut.events.map(e=>({...e,card:CARDDB.find(c=>c.id===e.id)}));
+  const valOf=e=>e.card.sub*val(e.card.prog)/100;
+  const sum=h=>evs.filter(e=>e.m<h).reduce((s,e)=>s+valOf(e),0);
+  const pts=h=>evs.filter(e=>e.m<h).reduce((s,e)=>s+e.card.sub,0);
+  let h=`<div class="hbar">
+    <div class="hchip">First 6 months<b>${money(sum(6.01))}</b>${fmt(pts(6.01))} pts</div>
+    <div class="hchip">First 12 months<b>${money(sum(12.01))}</b>${fmt(pts(12.01))} pts</div>
+    <div class="hchip">Full 24 months<b>${money(sum(24.01))}</b>${fmt(pts(24.01))} pts</div>
+    <div class="hchip">Yearly average<b>${money(sum(24.01)/2)}</b>what your family/business can count on annually</div>
+  </div><div class="tl">`;
+  const start=new Date();
+  evs.forEach(e=>{
+    const d=new Date(start);d.setMonth(d.getMonth()+e.m);
+    const mLabel=e.m===0?'Now':d.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    h+=`<div class="tlItem"><div class="tlMonth">${mLabel}${e.player?` · Player ${e.player}`:''}</div>
+      <div class="tlCard"><div class="row spread"><div><b>${e.card.n}</b> ${e.card.type==='business'?'<span class="pill biz">Business</span>':'<span class="pill pers">Personal</span>'}</div>
+      <div class="useVal">${fmt(e.card.sub)} pts ≈ ${money(valOf(e))}</div></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">Spend ${money(e.card.min)} in ${e.card.mo} months · ${money(e.card.af)} annual fee · ${e.card.hl}</div>
+      <div class="tlWhy">📋 ${e.why}</div></div></div>`;
+  });
+  h+='</div>';
+  if(S.planOut.skippedIds.length){
+    h+=`<div class="card" style="margin-top:8px"><b style="font-size:14px">Skipped (minimum spend too high for your budget)</b><div style="font-size:13px;color:var(--muted);margin-top:6px">${S.planOut.skippedIds.map(id=>{const c=CARDDB.find(x=>x.id===id);return `${c.n} — needs ${money(c.min)} in ${c.mo} months`}).join('<br>')}</div></div>`;
+  }
+  h+='<div class="alert ok" style="margin-top:14px">Reminder: this plan assumes you pay every card in full monthly and only put spending on cards that you\'d be doing anyway. Verify each offer on the issuer\'s site before applying — ask Claude to refresh the database if it\'s been more than a month or two.</div>';
+  out.innerHTML=h;
+}
+
+/* ================= DASHBOARD ================= */
+function renderDash(){
+  const totalVal=Object.keys(S.balances).reduce((s,k)=>s+(S.balances[k]||0)*val(k)/100,0);
+  const totalPts=Object.keys(S.balances).reduce((s,k)=>s+(S.balances[k]||0),0);
+  const fees=S.cards.reduce((s,c)=>s+c.af,0);
+  const pendingSub=S.cards.filter(c=>c.sub>0&&c.spent<c.min).reduce((s,c)=>s+c.sub*val(c.prog)/100,0);
+  document.getElementById('dashStats').innerHTML=`
+    <div class="card stat"><div class="lbl">Points portfolio</div><div class="val" style="color:var(--green)">${money(totalVal)}</div><div class="note">${fmt(totalPts)} points across programs</div></div>
+    <div class="card stat"><div class="lbl">Active cards</div><div class="val">${S.cards.length}</div><div class="note">${money(fees)} total annual fees</div></div>
+    <div class="card stat"><div class="lbl">Bonuses in progress</div><div class="val" style="color:var(--gold)">${money(pendingSub)}</div><div class="note">value pending — finish those minimum spends!</div></div>
+    <div class="card stat"><div class="lbl">Mode</div><div class="val" style="text-transform:capitalize">${S.mode}</div><div class="note">rankings tuned for ${S.mode} use</div></div>`;
+  // alerts
+  const now=new Date();let al='';
+  S.cards.forEach(c=>{
+    const dl=cardDeadline(c);
+    if(c.sub>0&&c.spent<c.min&&dl){const days=Math.ceil((dl-now)/864e5);
+      if(days<0)al+=`<div class="alert">❌ <b>${c.name}</b>: bonus deadline passed. Call the issuer — they sometimes extend it.</div>`;
+      else if(days<45)al+=`<div class="alert">⏰ <b>${c.name}</b>: ${money(c.min-c.spent)} left to spend in ${days} days to earn ${fmt(c.sub)} pts.</div>`;}
+    const an=cardAnniv(c);
+    if(an&&c.af>0){const days=Math.ceil((an-now)/864e5);
+      if(days<45)al+=`<div class="alert">💳 <b>${c.name}</b>: ${money(c.af)} annual fee hits ${an.toLocaleDateString()}. Decide now: keep, downgrade, or cancel.</div>`;}
+  });
+  document.getElementById('dashAlerts').innerHTML=al||'<div class="alert ok">✓ Nothing urgent. All bonus deadlines and renewals are clear.</div>';
+  // next card
+  const nx=document.getElementById('dashNext');
+  if(S.planOut&&S.planOut.events.length){
+    const e=S.planOut.events[0],c=CARDDB.find(x=>x.id===e.id);
+    nx.innerHTML=`<b style="font-size:16px">${c.n}</b> ${c.type==='business'?'<span class="pill biz">Business</span>':'<span class="pill pers">Personal</span>'}<div style="font-size:13px;color:var(--muted);margin-top:6px">${fmt(c.sub)} pts ≈ <b style="color:var(--green)">${money(c.sub*val(c.prog)/100)}</b> · spend ${money(c.min)} in ${c.mo} mo</div><div style="font-size:13px;color:var(--muted);margin-top:6px">${e.why}</div><button class="btn sm" style="margin-top:10px" onclick="go('plan')">See full plan →</button>`;
+  }else nx.innerHTML='<div style="color:var(--muted);font-size:13px">Build your churning plan and your next recommended card will show up here.</div><button class="btn sm" style="margin-top:10px" onclick="go(\'plan\')">Build my plan →</button>';
+  // best value
+  const bd=document.getElementById('dashBest');
+  const act=Object.keys(S.balances).filter(k=>S.balances[k]>0);
+  if(!act.length){bd.innerHTML='<div style="color:var(--muted);font-size:13px">Enter your point balances in <b>Maximize My Points</b> and your top redemption opportunities will appear here.</div>';}
+  else{
+    const tops=act.map(k=>{const u=rankUses(k)[0];return {k,u,v:S.balances[k]*u.cpp/100}}).sort((a,b)=>b.v-a.v).slice(0,3);
+    bd.innerHTML=tops.map(t=>`<div class="useItem"><div class="row spread"><div class="useTitle">${PROGRAMS[t.k].name}: ${t.u.t}</div><div class="useVal">${money(t.v)}</div></div><div class="useDesc">${t.u.d}</div></div>`).join('');
+  }
+}
+
+/* ================= VALUATIONS / BACKUP ================= */
+function renderVals(){
+  document.getElementById('valTable').innerHTML='<tr><th>Program</th><th>Value (¢/pt)</th><th>What 100K points ≈</th></tr>'+
+    Object.keys(PROGRAMS).filter(k=>k!=='CASH').map(k=>`<tr><td>${PROGRAMS[k].name}</td><td><input type="number" step="0.05" value="${val(k)}" onchange="setVal('${k}',this.value)"></td><td style="color:var(--green);font-weight:700">${money(100000*val(k)/100)}</td></tr>`).join('');
+}
+function setVal(k,v){S.vals[k]=Number(v)||PROGRAMS[k].cpp;save();renderAll()}
+function resetVals(){S.vals={};save();renderAll()}
+function exportData(){
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify(S,null,2));
+  a.download='churnpilot-backup.json';a.click();
+}
+function importData(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{S=Object.assign({},DEFAULTS,JSON.parse(r.result));save();renderAll();alert('Backup restored!')}catch(e){alert('That file doesn\'t look like a ChurnPilot backup.')}};
+  r.readAsText(f);
+}
+
+/* ================= INIT ================= */
+function renderAll(){paintMode();renderBalances();renderOpt();renderWallet();renderPlan();renderDash();renderVals()}
+renderAll();
+</script>
+</body>
+</html>
