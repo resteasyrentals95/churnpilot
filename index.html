@@ -473,7 +473,10 @@ function cardAnniv(c){if(!c.open)return null;const d=new Date(c.open);const now=
 function renderWallet(){
   const w=document.getElementById('walletList');
   if(!S.cards.length){w.innerHTML='<div class="card empty" style="grid-column:1/-1"><b>No cards yet</b>Add your active cards to track bonus deadlines, annual fees, and perks — and so the Churning Plan knows what you already have.</div>';return}
-  w.innerHTML=S.cards.map(c=>{
+  const pref=S.mode==='business'?'business':'personal';
+  const match=S.cards.filter(c=>c.type===pref), other=S.cards.filter(c=>c.type!==pref);
+  const header=t=>`<div class="catHead" style="grid-column:1/-1;margin:4px 0 0">${t}</div>`;
+  const renderOne=c=>{
     const db=CARDDB.find(x=>x.id===c.dbId);
     const dl=cardDeadline(c), anniv=cardAnniv(c), now=new Date();
     const pct=c.min?Math.min(100,c.spent/c.min*100):100;
@@ -490,11 +493,18 @@ function renderWallet(){
     }
     const perks=db?`<div style="margin-top:10px;font-size:13px;color:var(--muted)"><b style="color:var(--text);font-size:12px">CURRENT PERKS & OFFERS</b><br>${db.perks.map(p=>'• '+p).join('<br>')}</div>`:'';
     const annivStr=anniv?`<div style="font-size:12px;color:var(--muted);margin-top:8px">💳 Annual fee ${c.af?money(c.af):'$0'} — renews ${anniv.toLocaleDateString()}</div>`:'';
-    return `<div class="card"><div class="row spread"><div><b style="font-size:15px">${c.name}</b> ${c.type==='business'?'<span class="pill biz">Business</span>':'<span class="pill pers">Personal</span>'}<div style="font-size:12px;color:var(--muted);margin-top:2px">${c.iss} · ${PROGRAMS[c.prog].name}${c.open?' · opened '+new Date(c.open).toLocaleDateString():''}</div></div>
+    const taxNote=(S.mode==='business'&&c.type==='business'&&c.af>0)?`<div style="font-size:12px;color:var(--gold);margin-top:6px">💼 This annual fee is typically a tax-deductible business expense — confirm with your CPA.</div>`:'';
+    return `<div class="card"><div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><div><b style="font-size:15px">${c.name}</b> ${c.type==='business'?'<span class="pill biz">Business</span>':'<span class="pill pers">Personal</span>'}<div style="font-size:12px;color:var(--muted);margin-top:2px">${c.iss} · ${PROGRAMS[c.prog].name}${c.open?' · opened '+new Date(c.open).toLocaleDateString():''}</div></div>
       <button class="btn danger sm" onclick="delCard(${c.uid})">✕</button></div>
-      ${subHtml}${annivStr}${perks}
+      ${subHtml}${annivStr}${taxNote}${perks}
       ${c.notes?`<div style="margin-top:8px;font-size:13px;color:var(--gold)">📌 ${c.notes}</div>`:''}</div>`;
-  }).join('');
+  };
+  let h='';
+  if(match.length&&other.length){
+    h+=header(pref==='business'?'💼 Business cards':'🏠 Personal cards')+match.map(renderOne).join('');
+    h+=header(pref==='business'?'🏠 Personal cards':'💼 Business cards')+other.map(renderOne).join('');
+  }else h=[...match,...other].map(renderOne).join('');
+  w.innerHTML=h;
 }
 
 /* ================= CHURNING PLAN ================= */
@@ -666,11 +676,12 @@ function renderDash(){
   const totalPts=Object.keys(S.balances).reduce((s,k)=>s+(S.balances[k]||0),0);
   const fees=S.cards.reduce((s,c)=>s+c.af,0);
   const pendingSub=S.cards.filter(c=>c.sub>0&&c.spent<c.min).reduce((s,c)=>s+c.sub*val(c.prog)/100,0);
+  const earnedSub=S.cards.filter(c=>c.sub>0&&(!c.min||c.spent>=c.min)&&c.type===(S.mode==='business'?'business':'personal')).reduce((s,c)=>s+c.sub*val(c.prog)/100,0);
   document.getElementById('dashStats').innerHTML=`
     <div class="card stat"><div class="lbl">Points portfolio</div><div class="val" style="color:var(--green)">${money(totalVal)}</div><div class="note">${fmt(totalPts)} points across programs</div></div>
     <div class="card stat"><div class="lbl">Active cards</div><div class="val">${S.cards.length}</div><div class="note">${money(fees)} total annual fees</div></div>
     <div class="card stat"><div class="lbl">Bonuses in progress</div><div class="val" style="color:var(--gold)">${money(pendingSub)}</div><div class="note">value pending — finish those minimum spends!</div></div>
-    <div class="card stat"><div class="lbl">Mode</div><div class="val" style="text-transform:capitalize">${S.mode}</div><div class="note">rankings tuned for ${S.mode} use</div></div>`;
+    <div class="card stat"><div class="lbl">${S.mode==='business'?'Business travel funded':'Family travel funded'}</div><div class="val" style="color:var(--gold)">${money(earnedSub)}</div><div class="note">${S.mode==='business'?'bonuses earned from expenses your business had anyway':'bonuses your family has already earned — book something fun'}</div></div>`;
   // alerts
   const now=new Date();let al='';
   if(S.lastCheckin){
