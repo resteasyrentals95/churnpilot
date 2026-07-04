@@ -101,6 +101,7 @@
     <button data-tab="dash" class="on" onclick="go('dash')">Dashboard</button>
     <button data-tab="opt" onclick="go('opt')">Maximize My Points</button>
     <button data-tab="wallet" onclick="go('wallet')">My Cards</button>
+    <button data-tab="goals" onclick="go('goals')">Goals</button>
     <button data-tab="plan" onclick="go('plan')">Churning Plan</button>
     <button data-tab="rules" onclick="go('rules')">Rules &amp; Data</button>
   </nav>
@@ -137,6 +138,32 @@
       <button class="btn" onclick="openAddCard()">+ Add a card</button>
     </div>
     <div id="walletList" class="grid g2"></div>
+  </section>
+
+  <!-- GOALS -->
+  <section id="tab-goals" class="tab">
+    <div class="row spread">
+      <div><h2>Goals</h2><p class="sub">Give your points a job — "Disney on points" or "Fund $8,000 of travel this year." ChurnPilot tracks your progress and projects when you'll hit it based on your churning plan.</p></div>
+      <button class="btn" onclick="toggleGoalForm()">+ New goal</button>
+    </div>
+    <div class="card" id="goalForm" style="display:none;margin-bottom:14px">
+      <div class="grid g3">
+        <div><label>What are you saving points for?</label><input id="gName" placeholder="e.g. Disney trip, Europe anniversary"></div>
+        <div><label>Goal type</label><select id="gType" onchange="document.getElementById('gProgWrap').style.display=this.value==='points'?'block':'none'">
+          <option value="points">Points in one program</option>
+          <option value="dollars">Total portfolio value ($)</option></select></div>
+        <div id="gProgWrap"><label>Which program?</label><select id="gProg"></select></div>
+        <div><label>Target (points or $)</label><input type="number" id="gTarget" min="1" placeholder="e.g. 150000"></div>
+        <div style="align-self:end"><button class="btn" style="width:100%" onclick="saveGoal()">Save goal</button></div>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px">Tip: if your dream is a hotel or airline redemption, flexible points (Chase, Amex, Citi, Capital One, Bilt) can transfer there — set the goal on the flexible program if that's where you're earning.</p>
+    </div>
+    <div id="goalList" class="grid g2"></div>
+    <div class="card" style="margin-top:14px">
+      <b style="font-size:14px">🗓️ Never lose track — put it on your calendar</b>
+      <p style="color:var(--muted);font-size:13px;margin:6px 0 10px">One tap adds a repeating reminder to your phone/computer calendar. On the 1st of every month it'll nudge you: update balances, check goals, review what's urgent.</p>
+      <button class="btn ghost" onclick="calMonthly()">📅 Add monthly check-in reminder to my calendar</button>
+    </div>
   </section>
 
   <!-- PLAN -->
@@ -336,7 +363,7 @@ const CARDDB = [
 ];
 
 /* ================= STATE ================= */
-const DEFAULTS = {mode:'personal',balances:{},cards:[],vals:{},plan:{p524:0,spend:4000,biz:'yes',p2:'no'},planOut:null};
+const DEFAULTS = {mode:'personal',balances:{},cards:[],vals:{},plan:{p524:0,spend:4000,biz:'yes',p2:'no'},planOut:null,goals:[],lastCheckin:null};
 let S = load();
 function load(){try{const s=JSON.parse(localStorage.getItem('churnpilot'));return Object.assign({},DEFAULTS,s)}catch(e){return {...DEFAULTS}}}
 function save(){localStorage.setItem('churnpilot',JSON.stringify(S))}
@@ -360,7 +387,7 @@ function renderBalances(){
   }
   document.getElementById('balances').innerHTML=h;
 }
-function setBal(k,v){S.balances[k]=Number(v)||0;save();renderOpt();renderDash()}
+function setBal(k,v){S.balances[k]=Number(v)||0;S.lastCheckin=Date.now();save();renderOpt();renderDash();renderGoals()}
 function clearBalances(){S.balances={};save();renderBalances();renderOpt();renderDash()}
 function rankUses(prog){
   const opp=S.mode==='business'?'pers':'biz';
@@ -428,7 +455,8 @@ function renderWallet(){
       subHtml=`<div style="margin-top:10px"><div class="row spread" style="font-size:12px"><span style="color:var(--muted)">Bonus progress: ${money(c.spent)} / ${money(c.min)}</span>
         <span>${subDone?'<span class="pill pers">✓ Bonus earned</span>':days!=null?(days<0?'<span class="pill warn">Deadline passed</span>':`<span class="pill ${days<30?'warn':'gold'}">${days} days left</span>`):''}</span></div>
         <div class="bar"><i style="width:${pct}%"></i></div>
-        ${!subDone?`<label>Update spend so far ($)</label><input type="number" value="${c.spent}" onchange="updSpent(${c.uid},this.value)">`:''}
+        ${!subDone?`<label>Update spend so far ($)</label><input type="number" value="${c.spent}" onchange="updSpent(${c.uid},this.value)">
+        ${dl&&dl>now?`<button class="btn ghost sm" style="margin-top:8px" onclick="calCard(${c.uid})">📅 Put this deadline on my calendar</button>`:''}`:''}
         <div style="font-size:12px;color:var(--muted);margin-top:6px">Bonus: <b style="color:var(--gold)">${fmt(c.sub)} pts</b> ≈ ${money(c.sub*val(c.prog)/100)}</div></div>`;
     }
     const perks=db?`<div style="margin-top:10px;font-size:13px;color:var(--muted)"><b style="color:var(--text);font-size:12px">CURRENT PERKS & OFFERS</b><br>${db.perks.map(p=>'• '+p).join('<br>')}</div>`:'';
@@ -478,7 +506,7 @@ function buildPlan(){
   }
   [...persQ,...bizQ].forEach(c=>{if(!canAfford(c))skipped.push(c)});
   S.planOut={events:events.map(e=>({m:e.m,id:e.card.id,why:e.why,player:e.player})),skippedIds:skipped.map(c=>c.id),ts:Date.now()};
-  save();renderPlan();renderDash();
+  save();renderPlan();renderDash();renderGoals();
 }
 function renderPlan(){
   const out=document.getElementById('planOut');
@@ -512,6 +540,97 @@ function renderPlan(){
   out.innerHTML=h;
 }
 
+/* ================= GOALS ================= */
+function portfolioValue(){return Object.keys(S.balances).reduce((s,k)=>s+(S.balances[k]||0)*val(k)/100,0)}
+function toggleGoalForm(){
+  const f=document.getElementById('goalForm');
+  document.getElementById('gProg').innerHTML=Object.keys(PROGRAMS).filter(k=>k!=='CASH').map(k=>`<option value="${k}">${PROGRAMS[k].name}</option>`).join('');
+  f.style.display=f.style.display==='none'?'block':'none';
+}
+function saveGoal(){
+  const name=gName.value.trim(),target=Number(gTarget.value)||0;
+  if(!name||target<=0){alert('Give the goal a name and a target number');return}
+  S.goals.push({id:Date.now(),name,type:gType.value,prog:gType.value==='points'?gProg.value:null,target,celebrated:false});
+  gName.value='';gTarget.value='';document.getElementById('goalForm').style.display='none';
+  save();renderGoals();renderDash();
+}
+function delGoal(id){if(confirm('Remove this goal?')){S.goals=S.goals.filter(g=>g.id!==id);save();renderGoals();renderDash()}}
+function goalCurrent(g){return g.type==='points'?(S.balances[g.prog]||0):portfolioValue()}
+function goalLabel(g){return g.type==='points'?fmt(goalCurrent(g))+' / '+fmt(g.target)+' '+PROGRAMS[g.prog].name+' pts':money(goalCurrent(g))+' / '+money(g.target)+' portfolio value'}
+function projectGoal(g){
+  const cur=goalCurrent(g);
+  if(cur>=g.target)return {done:true};
+  if(!S.planOut||!S.planOut.events.length)return null;
+  let acc=cur;
+  const evs=[...S.planOut.events].sort((a,b)=>a.m-b.m);
+  for(const e of evs){
+    const c=CARDDB.find(x=>x.id===e.id);if(!c)continue;
+    const add=g.type==='points'?(c.prog===g.prog?c.sub:0):c.sub*val(c.prog)/100;
+    if(!add)continue;
+    acc+=add;
+    if(acc>=g.target){const d=new Date();d.setMonth(d.getMonth()+e.m+(c.mo||3));return {date:d}}
+  }
+  return null;
+}
+function confetti(){
+  const em=['🎉','✨','🎊','⭐','🏆'];
+  for(let i=0;i<45;i++){
+    const s=document.createElement('span');s.textContent=em[i%em.length];
+    s.style.cssText=`position:fixed;left:${Math.random()*100}vw;top:-40px;font-size:${16+Math.random()*22}px;z-index:999;pointer-events:none;transition:transform ${2+Math.random()*2}s ease-in,opacity 3.5s`;
+    document.body.appendChild(s);
+    requestAnimationFrame(()=>{s.style.transform=`translateY(${window.innerHeight+80}px) rotate(${Math.random()*720-360}deg)`;s.style.opacity='0'});
+    setTimeout(()=>s.remove(),4500);
+  }
+}
+function renderGoals(){
+  const el=document.getElementById('goalList');if(!el)return;
+  if(!S.goals.length){el.innerHTML='<div class="card empty" style="grid-column:1/-1"><b>No goals yet</b>Set a target — a trip, a points number, a dollar amount of yearly travel — and watch the progress bars fill up.</div>';return}
+  let burst=false;
+  el.innerHTML=S.goals.map(g=>{
+    const cur=goalCurrent(g),pct=Math.min(100,cur/g.target*100),done=cur>=g.target;
+    if(done&&!g.celebrated){g.celebrated=true;burst=true}
+    if(!done&&g.celebrated)g.celebrated=false;
+    const proj=projectGoal(g);
+    let projStr;
+    if(done)projStr='<span class="pill pers">🏆 GOAL HIT — go book it!</span>';
+    else if(proj&&proj.date)projStr=`<span class="pill gold">On pace to hit it ~${proj.date.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span> <span style="color:var(--muted);font-size:11px">(if you follow your churning plan)</span>`;
+    else if(S.planOut&&S.planOut.events.length)projStr='<span class="pill warn">Your current plan doesn\'t reach this — add balances or adjust the plan</span>';
+    else projStr='<span style="color:var(--muted);font-size:12px">Build a churning plan to see your projected hit date</span>';
+    return `<div class="card"><div class="row spread"><b style="font-size:15px">${done?'🏆 ':'🎯 '}${g.name}</b><button class="btn danger sm" onclick="delGoal(${g.id})">✕</button></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">${goalLabel(g)} · <b style="color:${done?'var(--green)':'var(--text)'}">${Math.floor(pct)}%</b></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div style="margin-top:10px">${projStr}</div></div>`;
+  }).join('');
+  save();
+  if(burst)confetti();
+}
+/* ================= CALENDAR REMINDERS (.ics) ================= */
+function icsD(d){return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')}
+function dlIcs(fname,title,date,rrule,desc){
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ChurnPilot//EN','BEGIN:VEVENT',
+    'UID:'+Date.now()+'@churnpilot','DTSTAMP:'+icsD(new Date())+'T120000Z',
+    'DTSTART;VALUE=DATE:'+icsD(date),'SUMMARY:'+title];
+  if(rrule)L.push('RRULE:'+rrule);
+  if(desc)L.push('DESCRIPTION:'+desc);
+  L.push('BEGIN:VALARM','TRIGGER:PT9H','ACTION:DISPLAY','DESCRIPTION:'+title,'END:VALARM','END:VEVENT','END:VCALENDAR');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([L.join('\r\n')],{type:'text/calendar'}));
+  a.download=fname;a.click();
+}
+function calMonthly(){
+  const d=new Date();d.setMonth(d.getMonth()+1);d.setDate(1);
+  dlIcs('churnpilot-checkin.ics','📊 ChurnPilot check-in: update balances & goals',d,'FREQ=MONTHLY',
+    'Open your ChurnPilot app, update point balances and bonus spend, and review action items.');
+}
+function calCard(uid){
+  const c=S.cards.find(x=>x.uid===uid);if(!c)return;
+  const dl=cardDeadline(c);if(!dl)return;
+  const remind=new Date(dl);remind.setDate(remind.getDate()-7);
+  const when=remind>new Date()?remind:new Date(Date.now()+864e5);
+  dlIcs('churnpilot-bonus-deadline.ics',`⏰ ${c.name}: finish ${money(Math.max(0,c.min-c.spent))} spend by ${dl.toLocaleDateString()}`,when,null,
+    `Sign-up bonus of ${fmt(c.sub)} points at stake. Deadline ${dl.toLocaleDateString()}.`);
+}
+
 /* ================= DASHBOARD ================= */
 function renderDash(){
   const totalVal=Object.keys(S.balances).reduce((s,k)=>s+(S.balances[k]||0)*val(k)/100,0);
@@ -525,6 +644,15 @@ function renderDash(){
     <div class="card stat"><div class="lbl">Mode</div><div class="val" style="text-transform:capitalize">${S.mode}</div><div class="note">rankings tuned for ${S.mode} use</div></div>`;
   // alerts
   const now=new Date();let al='';
+  if(S.lastCheckin){
+    const days=Math.floor((Date.now()-S.lastCheckin)/864e5);
+    if(days>=30)al+=`<div class="alert" style="border-color:var(--gold);background:rgba(245,196,81,.07)">🗓️ It's been <b>${days} days</b> since you updated your balances. Takes 30 seconds — <a href="#" style="color:var(--gold)" onclick="go('opt');return false">update them now</a>.</div>`;
+  }
+  S.goals.forEach(g=>{
+    const cur=goalCurrent(g),pct=cur/g.target*100;
+    if(pct>=100)al+=`<div class="alert ok">🏆 <b>${g.name}</b>: GOAL HIT! You have ${g.type==='points'?fmt(cur)+' '+PROGRAMS[g.prog].name+' points':money(cur)+' in points value'} — time to book it.</div>`;
+    else if(pct>=75)al+=`<div class="alert" style="border-color:var(--gold);background:rgba(245,196,81,.07)">🎯 <b>${g.name}</b>: ${Math.floor(pct)}% there — so close!</div>`;
+  });
   S.cards.forEach(c=>{
     const dl=cardDeadline(c);
     if(c.sub>0&&c.spent<c.min&&dl){const days=Math.ceil((dl-now)/864e5);
@@ -571,7 +699,7 @@ function importData(ev){
 }
 
 /* ================= INIT ================= */
-function renderAll(){paintMode();renderBalances();renderOpt();renderWallet();renderPlan();renderDash();renderVals()}
+function renderAll(){paintMode();renderBalances();renderOpt();renderWallet();renderGoals();renderPlan();renderDash();renderVals()}
 renderAll();
 </script>
 </body>
