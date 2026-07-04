@@ -7,19 +7,29 @@
 <style>
   :root{
     --bg:#0b1220; --panel:#131c2e; --panel2:#1a2540; --line:#26334f;
-    --text:#e8eefc; --muted:#8fa0c2; --gold:#f5c451; --green:#3ddc97;
+    --text:#e8eefc; --muted:#8fa0c2; --gold:#f5c451; --goldText:#1a1200; --green:#3ddc97;
     --blue:#5b9dff; --red:#ff6b6b; --purple:#b48cff;
   }
+  body.biz{
+    --bg:#0a1424; --panel:#0f2138; --panel2:#153050; --line:#224569;
+    --muted:#93aed0; --gold:#7fb6ff; --goldText:#03101f;
+  }
+  /* circular-reveal theme switch (View Transitions API) */
+  ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+  ::view-transition-old(root){z-index:1}
+  ::view-transition-new(root){z-index:2}
+  body,.card,.balCell,input,select,textarea,details,.hchip,.tlCard{transition:background-color .5s,border-color .5s,color .5s}
+  @media (prefers-reduced-motion: reduce){body,.card,.balCell,input,select,textarea,details,.hchip,.tlCard{transition:none}}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-  header{position:sticky;top:0;z-index:50;background:rgba(11,18,32,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 20px}
+  header{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 20px;transition:background-color .5s,border-color .5s}
   .hrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;max-width:1100px;margin:0 auto}
   .logo{font-size:22px;font-weight:800}
   .logo span{color:var(--gold)}
   .logo small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
   .modeToggle{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
   .modeToggle button{border:none;background:transparent;color:var(--muted);padding:8px 18px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:600}
-  .modeToggle button.on{background:var(--gold);color:#1a1200}
+  .modeToggle button.on{background:var(--gold);color:var(--goldText)}
   nav{display:flex;gap:4px;max-width:1100px;margin:12px auto 0;overflow-x:auto}
   nav button{border:none;background:transparent;color:var(--muted);padding:10px 14px;border-radius:10px 10px 0 0;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap}
   nav button.on{background:var(--panel);color:var(--text);border:1px solid var(--line);border-bottom:none}
@@ -44,7 +54,7 @@
   label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:600}
   input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:9px 11px;font-size:14px}
   input:focus,select:focus{outline:none;border-color:var(--gold)}
-  .btn{display:inline-block;border:none;border-radius:10px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;background:var(--gold);color:#1a1200}
+  .btn{display:inline-block;border:none;border-radius:10px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;background:var(--gold);color:var(--goldText)}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
   .btn.danger{background:transparent;border:1px solid rgba(255,107,107,.4);color:var(--red)}
   .btn.sm{padding:7px 12px;font-size:12px}
@@ -93,8 +103,8 @@
   <div class="hrow">
     <div class="logo">Churn<span>Pilot</span><small>Points &amp; card strategy for family + business</small></div>
     <div class="modeToggle">
-      <button id="modePers" onclick="setMode('personal')">Personal</button>
-      <button id="modeBiz" onclick="setMode('business')">Business</button>
+      <button id="modePers" onclick="setMode('personal',event)">Personal</button>
+      <button id="modeBiz" onclick="setMode('business',event)">Business</button>
     </div>
   </div>
   <nav>
@@ -373,8 +383,27 @@ const money=n=>'$'+Math.round(n).toLocaleString();
 
 /* ================= NAV / MODE ================= */
 function go(t){document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));document.querySelectorAll('nav button').forEach(e=>e.classList.remove('on'));document.getElementById('tab-'+t).classList.add('on');document.querySelector(`nav [data-tab="${t}"]`).classList.add('on');window.scrollTo(0,0)}
-function setMode(m){S.mode=m;save();paintMode();renderAll()}
-function paintMode(){document.getElementById('modePers').classList.toggle('on',S.mode==='personal');document.getElementById('modeBiz').classList.toggle('on',S.mode==='business')}
+function setMode(m,ev){
+  if(S.mode===m)return;
+  const apply=()=>{S.mode=m;save();renderAll()};
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(document.startViewTransition&&!reduce&&document.visibilityState==='visible'){
+    const x=ev?ev.clientX:window.innerWidth-60, y=ev?ev.clientY:40;
+    const r=Math.hypot(Math.max(x,window.innerWidth-x),Math.max(y,window.innerHeight-y));
+    const t=document.startViewTransition(apply);
+    t.ready.then(()=>{
+      document.documentElement.animate(
+        {clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${r}px at ${x}px ${y}px)`]},
+        {duration:700,easing:'cubic-bezier(.4,0,.2,1)',pseudoElement:'::view-transition-new(root)'}
+      );
+    }).catch(()=>{});
+  }else apply();
+}
+function paintMode(){
+  document.body.classList.toggle('biz',S.mode==='business');
+  document.getElementById('modePers').classList.toggle('on',S.mode==='personal');
+  document.getElementById('modeBiz').classList.toggle('on',S.mode==='business');
+}
 
 /* ================= OPTIMIZER ================= */
 function renderBalances(){
