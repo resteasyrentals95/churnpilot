@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ChurnPilot — Points & Card Strategy</title>
+<meta name="description" content="Free credit card points strategy for families and business owners: see what your points are really worth, track sign-up bonus deadlines, and get a 24-month card roadmap built around real issuer rules.">
+<meta property="og:title" content="ChurnPilot — Points & Card Strategy">
+<meta property="og:description" content="See what your points are really worth and get a 24-month card roadmap your family or business can count on. Free, private, no account needed.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://resteasyrentals95.github.io/churnpilot/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💳</text></svg>">
 <style>
   :root{
     --bg:#0b1220; --panel:#131c2e; --panel2:#1a2540; --line:#26334f;
@@ -451,10 +457,12 @@ function openAddCard(){
   sel.innerHTML='<option value="">— Custom / other card —</option>'+CARDDB.map(c=>`<option value="${c.id}">${c.n} (${c.type==='business'?'Biz':'Personal'}${c.sub?' — '+fmt(c.sub)+' pt bonus':''})</option>`).join('');
   const ps=document.getElementById('mProg');
   ps.innerHTML=Object.keys(PROGRAMS).map(k=>`<option value="${k}">${PROGRAMS[k].name}</option>`).join('');
-  document.getElementById('mOpen').value=new Date().toISOString().slice(0,10);
+  const _t=new Date();document.getElementById('mOpen').value=`${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`;
   document.getElementById('cardModal').classList.add('on');
 }
 function closeModal(){document.getElementById('cardModal').classList.remove('on')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.getElementById('cardModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
 function dbPicked(){
   const c=CARDDB.find(x=>x.id===document.getElementById('mDb').value);if(!c)return;
   mName.value=c.n;mIssuer.value=c.iss;mType.value=c.type;mAf.value=c.af;mProg.value=c.prog;mSub.value=c.sub;mMin.value=c.min;mMonths.value=c.mo||3;
@@ -516,29 +524,65 @@ function buildPlan(){
   const canAfford=c=>c.min<= spend*(c.mo||3);
   const persQ=CARDDB.filter(c=>c.type==='personal'&&c.sub>0&&!owned.has(c.id)&&c.id!=='csr');
   const bizQ=CARDDB.filter(c=>c.type==='business'&&c.sub>0&&!owned.has(c.id));
-  // priority: Chase first while under 5/24, then by bonus value
-  const score=c=>(c.chase?(p524<5?1e9:0):0)+c.sub*val(c.prog);
+  // priority: Chase first while under 5/24, then by bonus value.
+  // The Southwest pair scores 1.5x when the Companion Pass is achievable — the pass
+  // roughly doubles what those points are worth, so the raw bonus undersells them.
+  const SWIDS=['swpriority','swbiz'];
+  const swPairLive=hasBiz&&persQ.some(c=>c.id==='swpriority'&&canAfford(c))&&bizQ.some(c=>c.id==='swbiz'&&canAfford(c));
+  const score=c=>(c.chase?(p524<5?1e9:0):0)+c.sub*val(c.prog)*(swPairLive&&SWIDS.includes(c.id)?1.5:1);
   persQ.sort((a,b)=>score(b)-score(a));bizQ.sort((a,b)=>score(b)-score(a));
   const events=[],skipped=[];
   let lastAny=-99,lastPers=-99,lastBiz=-99,lastC1=-99;
   const gapAny=p2?1:2, gapType=p2?2:3;
   let player=1;
+  // month-by-month spend already committed to earlier minimum spends — a new card only
+  // fits if its monthly requirement stacks on top without blowing the stated budget
+  const committed=new Array(40).fill(0);
+  const perMo=c=>c.min/(c.mo||3);
+  const fitsBudget=(c,m)=>{for(let k=m;k<m+(c.mo||3);k++)if(committed[k]+perMo(c)>spend)return false;return true};
+  // Southwest Companion Pass: both SW bonuses must post in the SAME calendar year
+  const SW=['swpriority','swbiz'];
+  const startMo=new Date().getMonth();
+  const yearOf=m=>Math.floor((startMo+m)/12);
+  const swPartner=id=>{const pid=id==='swpriority'?'swbiz':'swpriority';return persQ.concat(bizQ).find(c=>c.id===pid)};
+  let swLocked=false;
+  const swOk=(c,m)=>{
+    if(!SW.includes(c.id)||swLocked)return true;
+    const p=swPartner(c.id);
+    if(!p||!canAfford(p)||(p.chase&&p524>=5))return true; // pair impossible — schedule as a normal card
+    return yearOf(m+(c.mo||3))===yearOf(m+gapType+(p.mo||3));
+  };
+  let chaseBizN=0,chasePersN=0;
   for(let m=0;m<=24;m++){
     if(m-lastAny<gapAny)continue;
     let pick=null,why='';
     // business slot first (doesn't touch 5/24)
     if(hasBiz&&m-lastBiz>=gapType){
-      const i=bizQ.findIndex(c=>canAfford(c)&&(!c.chase||p524<5)&&(!c.c1||m-lastC1>=6));
+      const i=bizQ.findIndex(c=>canAfford(c)&&fitsBudget(c,m)&&(!c.chase||p524<5)&&(!c.c1||m-lastC1>=6)&&swOk(c,m));
       if(i>-1){pick=bizQ.splice(i,1)[0];lastBiz=m;
-        why=pick.c1?'Capital One business cards report to personal credit — spaced 6+ months apart.':(pick.chase?'Chase business card: big bonus and it does NOT add to your 5/24 count — but you must be under 5/24 to get approved, so these come early.':'Business card — no impact on your personal 5/24 count.');}
+        why=pick.c1?'Capital One business cards report to personal credit — spaced 6+ months apart.'
+          :pick.chase?(chaseBizN++===0?'Chase business card: big bonus and it does NOT add to your 5/24 count — but you must be under 5/24 to get approved, so these come early.':'Chase business — doesn\'t add to your 5/24 count.')
+          :'Business card — no impact on your personal 5/24 count.';}
     }
     if(!pick&&m-lastPers>=gapType){
-      const i=persQ.findIndex(c=>canAfford(c)&&(!c.chase||p524<5)&&(!c.c1||m-lastC1>=6));
+      const i=persQ.findIndex(c=>canAfford(c)&&fitsBudget(c,m)&&(!c.chase||p524<5)&&(!c.c1||m-lastC1>=6)&&swOk(c,m));
       if(i>-1){pick=persQ.splice(i,1)[0];lastPers=m;p524++;
-        why=pick.chase?'Chase personal card — grab these FIRST while you\'re under 5/24. This adds +1 to your count.':'Adds +1 to your 5/24 count — that\'s fine, the Chase cards you needed are already in the plan.';}
+        why=pick.chase?(chasePersN++===0?'Chase personal card — grab these FIRST while you\'re under 5/24. This adds +1 to your count.':'Chase personal — adds +1 to your 5/24 count.')
+          :'Adds +1 to your 5/24 count — that\'s fine, the Chase cards you needed are already in the plan.';}
     }
     if(pick){
       if(pick.c1)lastC1=m;lastAny=m;
+      for(let k=m;k<m+(pick.mo||3);k++)committed[k]+=perMo(pick);
+      if(SW.includes(pick.id)){
+        if(!swLocked){
+          swLocked=true;
+          const p=swPartner(pick.id);
+          if(p){const q=p.type==='personal'?persQ:bizQ;const j=q.indexOf(p);if(j>-1){q.splice(j,1);q.unshift(p)}
+            why+=' 🎯 Timed with its Southwest partner card so both bonuses post in the same calendar year — that\'s the Companion Pass.';}
+        }else{
+          why+=' 🎯 Second half of the Companion Pass pair — earn this bonus in the same calendar year and your companion flies free through the end of NEXT year.';
+        }
+      }
       events.push({m,card:pick,why,player:p2?player:0});
       if(p2)player=player===1?2:1;
     }
