@@ -10,6 +10,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://resteasyrentals95.github.io/churnpilot/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💳</text></svg>">
+<script data-goatcounter="https://churnpilot.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <style>
   :root{
     --bg:#0b1220; --panel:#131c2e; --panel2:#1a2540; --line:#26334f;
@@ -590,6 +591,18 @@ function buildPlan(){
   [...persQ,...bizQ].forEach(c=>{if(!canAfford(c))skipped.push(c)});
   S.planOut={events:events.map(e=>({m:e.m,id:e.card.id,why:e.why,player:e.player})),skippedIds:skipped.map(c=>c.id),ts:Date.now()};
   save();renderPlan();renderDash();renderGoals();
+  if(window.goatcounter&&goatcounter.count)goatcounter.count({path:'plan-built',event:true});
+}
+function sharePlan(){
+  if(!S.planOut)return;
+  const evs=S.planOut.events.map(e=>CARDDB.find(c=>c.id===e.id));
+  const pts=evs.reduce((s,c)=>s+c.sub,0);
+  const usd=evs.reduce((s,c)=>s+c.sub*val(c.prog)/100,0);
+  const text=`Our next 24 months of card sign-up bonuses: ${fmt(pts)} points ≈ ${money(usd)} in free travel. Free tool, no signup:`;
+  const url='https://resteasyrentals95.github.io/churnpilot/';
+  if(window.goatcounter&&goatcounter.count)goatcounter.count({path:'plan-shared',event:true});
+  if(navigator.share){navigator.share({title:'My ChurnPilot travel plan',text,url}).catch(()=>{})}
+  else navigator.clipboard.writeText(`${text} ${url}`).then(()=>alert('Copied! Paste it into a text, group chat, or post.'));
 }
 function renderPlan(){
   const out=document.getElementById('planOut');
@@ -604,7 +617,9 @@ function renderPlan(){
     <div class="hchip">First 12 months<b>${money(sum(12.01))}</b>${fmt(pts(12.01))} pts</div>
     <div class="hchip">Full 24 months<b>${money(sum(24.01))}</b>${fmt(pts(24.01))} pts</div>
     <div class="hchip">Yearly average<b>${money(sum(24.01)/2)}</b>what your family/business can count on annually</div>
-  </div><div class="tl">`;
+  </div>
+  <div class="row" style="margin:10px 0 4px"><button class="btn sm" onclick="sharePlan()">📤 Share my plan</button></div>
+  <div class="tl">`;
   const start=new Date();
   evs.forEach(e=>{
     const d=new Date(start);d.setMonth(d.getMonth()+e.m);
